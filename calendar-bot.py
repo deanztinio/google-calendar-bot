@@ -28,7 +28,7 @@ def get_calendar_service():
             creds = pickle.load(token)
     if not creds or not creds.valid:
         flow = InstalledAppFlow.from_client_config(CREDENTIALS, SCOPES)
-        creds = flow.run_local_server(port=0)
+        creds = flow.run_console()
         with open(TOKEN_FILE, 'wb') as token:
             pickle.dump(creds, token)
     return build('calendar', 'v3', credentials=creds)
