@@ -100,6 +100,33 @@ def sync_training_plan():
         ("2025-06-07", "Rest Day"),
         ("2025-06-08", "🏁 Half Marathon Race Day - 21.1 km")
     ]
+@app.route('/list-training-events', methods=['GET'])
+def list_training_events():
+    service = get_calendar_service()
+
+    time_min = datetime(2025, 4, 4).isoformat() + 'Z'
+    time_max = datetime(2025, 6, 10).isoformat() + 'Z'
+
+    events_result = service.events().list(
+        calendarId='primary',
+        timeMin=time_min,
+        timeMax=time_max,
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+
+    events = events_result.get('items', [])
+
+    filtered_events = [
+        {
+            "start": e["start"].get("dateTime", e["start"].get("date")),
+            "summary": e["summary"]
+        }
+        for e in events
+        if any(keyword in e["summary"] for keyword in ["Run", "Training", "Race"])
+    ]
+
+    return jsonify(filtered_events)
 
     for date_str, summary in training_plan:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
