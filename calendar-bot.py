@@ -1,11 +1,12 @@
-# app.py
-
-from flask import Flask, request
+from flask import Flask, jsonify
+from datetime import datetime, timedelta
 import os
 import pickle
+
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from datetime import datetime, timedelta
+
+app = Flask(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 TOKEN_FILE = 'token.pkl'
@@ -27,31 +28,24 @@ def get_calendar_service():
             creds = pickle.load(token)
     return build('calendar', 'v3', credentials=creds)
 
-def create_zone2_event():
+@app.route('/list-events', methods=['GET'])
+def list_events():
     service = get_calendar_service()
-    tomorrow = datetime.now() + timedelta(days=1)
-    start_time = tomorrow.replace(hour=6, minute=0, second=0, microsecond=0)
-    end_time = start_time + timedelta(hours=1)
+    now = datetime.utcnow().isoformat() + 'Z'
+    end = (datetime.utcnow() + timedelta(days=30)).isoformat() + 'Z'
 
-    event = {
-        'summary': 'Zone 2 Run',
-        'description': 'Automated event from Render',
-        'start': {'dateTime': start_time.isoformat(), 'timeZone': 'Asia/Manila'},
-        'end': {'dateTime': end_time.isoformat(), 'timeZone': 'Asia/Manila'}
-    }
+    events_result = service.events().list(
+        calendarId='primary', timeMin=now, timeMax=end,
+        maxResults=20, singleEvents=True,
+        orderBy='startTime').execute()
+    events = events_result.get('items', [])
 
-    service.events().insert(calendarId='primary', body=event).execute()
+    event_list = []
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        event_list.append({'summary': event.get('summary'), 'start': start})
 
-# Flask app
-app = Flask(__name__)
-
-@app.route('/update-calendar', methods=['POST'])
-def update_calendar():
-    create_zone2_event()
-    return {'status': '✅ Calendar updated successfully!'}
+    return jsonify(event_list)
 
 if __name__ == '__main__':
-    import os
-port = int(os.environ.get("PORT", 5000))
-app.run(host='0.0.0.0', port=port)
-
+    app.run(host='0.0.0.0', port=5000)
