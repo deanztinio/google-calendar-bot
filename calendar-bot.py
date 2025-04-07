@@ -20,6 +20,31 @@ CREDENTIALS = {
         "token_uri": "https://oauth2.googleapis.com/token"
     }
 }
+@app.route('/delete-training-events', methods=['POST'])
+def delete_training_events():
+    service = get_calendar_service()
+
+    time_min = datetime(2025, 4, 1).isoformat() + 'Z'
+    time_max = datetime(2025, 6, 10).isoformat() + 'Z'
+
+    events_result = service.events().list(
+        calendarId='primary',
+        timeMin=time_min,
+        timeMax=time_max,
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+
+    events = events_result.get('items', [])
+
+    count = 0
+    for event in events:
+        summary = event.get("summary", "")
+        if any(keyword in summary for keyword in ["Run", "Training", "Race"]):
+            service.events().delete(calendarId='primary', eventId=event['id']).execute()
+            count += 1
+
+    return jsonify({"deleted_events": count})
 
 def get_calendar_service():
     creds = None
